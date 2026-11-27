@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 from bootstrap import REPO, ensure_env, require_tools, checkout, result_directory
-from cl_adapter import load_key, read_env
+from cl_adapter import load_key, read_env, add_continual_learning_argument, resolve_continual_learning
 from opencode_driver import OPENCODE_VERSION, prepare_opencode
 
 URL = "https://github.com/zapier/AutomationBench"
@@ -14,11 +14,16 @@ REVISION = "4a8e1061254004d9dac807054eed33fad7d1ff14"
 
 def main():
     settings = read_env(REPO)
-    parser = argparse.ArgumentParser(description="AutomationBench public set with OpenCode and Vision continual learning")
+    parser = argparse.ArgumentParser(description="AutomationBench public set with OpenCode and Vision")
     parser.add_argument("--workers", type=int, default=settings.get("BENCH_WORKERS") or "1")
     parser.add_argument("--task", action="append")
     parser.add_argument("--plan", action="store_true")
+    add_continual_learning_argument(parser)
     args = parser.parse_args()
+    try:
+        continual_learning = resolve_continual_learning(args.continual_learning, settings)
+    except ValueError as error:
+        parser.error(str(error))
     official = (REPO / "tasks.txt").read_text().splitlines()
     selected = args.task or official
     if len(set(official)) != 600:
@@ -27,8 +32,8 @@ def main():
         parser.error("Use positive workers and unique task IDs from tasks.txt")
     if args.plan:
         print(json.dumps({
-            "release": "1.0.6", "harness": "OpenCode + Vision CL", "split": "public",
-            "workers": args.workers, "task_count": len(selected), "tasks": selected,
+            "release": "1.0.6", "harness": "OpenCode + Vision", "split": "public",
+            "workers": args.workers, "continual_learning": continual_learning, "task_count": len(selected), "tasks": selected,
         }, indent=2))
         return 0
     ensure_env()
@@ -40,11 +45,14 @@ def main():
     }
     command = ["uv", "run", "--locked", "python", str(REPO / "evaluate.py"), "--workers", str(args.workers)]
     output = result_directory(
-        benchmark="AutomationBench", harness="OpenCode + Vision CL",
-        release="1.0.6", tasks=selected, workers=args.workers, split="public",
+        benchmark="AutomationBench", harness="OpenCode + Vision",
+        release="1.0.6", tasks=selected, workers=args.workers, continual_learning=continual_learning, split="public",
         revision=REVISION, opencode_version=OPENCODE_VERSION, max_steps=50,
     )
-    command.extend(["--output", str(output)])
+    command.extend([
+        "--output", str(output),
+        "--continual-learning" if continual_learning else "--no-continual-learning",
+    ])
     for task in args.task or []:
         command.extend(["--task", task])
     return subprocess.run(command, cwd=source, env=env).returncode

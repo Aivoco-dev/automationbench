@@ -1,6 +1,6 @@
 # AutomationBench Public
 
-**600 tasks across six domains · OpenCode 1.19.5 · Vision Large with continual learning**
+**600 tasks across six domains · OpenCode 1.19.5 · Vision Large · optional continual learning**
 
 ## Start
 
@@ -13,7 +13,19 @@
 ./start --task sales.multi_hop_lookup
 ```
 
-OpenCode uses Zapier’s simulated apps through the local tool adapter. Each task starts with a fresh simulated company and fresh Vision memory. The launcher uses local task labels from `tasks.txt`. Zapier's original assertions grade the simulated company's final state.
+OpenCode uses Zapier’s simulated apps through the local tool adapter. Each task starts with a fresh simulated company. With continual learning enabled, Vision starts each task with empty learning weights. The launcher uses local task labels from `tasks.txt`. Zapier's original assertions grade the simulated company's final state.
+
+## Continual learning
+
+Set `CONTINUAL_LEARNING=on` or `CONTINUAL_LEARNING=off` in this repo’s `.env` for one-click runs. The default is on. You can override it for a single run:
+
+```sh
+./start --continual-learning
+./start --no-continual-learning
+./start --plan --no-continual-learning
+```
+
+Both modes use the same tasks, harness, and conversation history within each task. Turning continual learning off skips the additional learning call and the use of learning weights. `run.json` records the selected mode.
 
 ## Results
 
